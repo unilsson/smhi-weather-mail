@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import smtplib
+import socket
 import ssl
 import sys
 from dataclasses import dataclass
@@ -556,22 +557,47 @@ def make_message(config: Config, summary: dict[str, Any]) -> EmailMessage:
     return message
 
 
+def resolve_ipv4(host: str, port: int) -> str:
+    """Resolve an SMTP host to one IPv4 address."""
+    addresses = socket.getaddrinfo(
+        host,
+        port,
+        family=socket.AF_INET,
+        type=socket.SOCK_STREAM,
+    )
+    if not addresses:
+        raise OSError(f"Kunde inte hitta någon IPv4-adress för {host}.")
+    return addresses[0][4][0]
+
+
 def send_message(config: Config, message: EmailMessage) -> None:
     context = ssl.create_default_context()
 
     if config.smtp_security == "ssl":
-        smtp: smtplib.SMTP = smtplib.SMTP_SSL(
+        smtp_ip = resolve_ipv4(config.smtp_host, config.smtp_port)
+        logging.info(
+            "Ansluter till SMTP %s (%s):%s via IPv4/SSL.",
             config.smtp_host,
+            smtp_ip,
             config.smtp_port,
+        )
+        smtp = smtplib.SMTP_SSL(
             timeout=config.smtp_timeout,
             context=context,
         )
+        smtp._host = config.smtp_host
+        smtp.connect(smtp_ip, config.smtp_port)
     else:
-        smtp = smtplib.SMTP(
+        smtp_ip = resolve_ipv4(config.smtp_host, config.smtp_port)
+        logging.info(
+            "Ansluter till SMTP %s (%s):%s via IPv4.",
             config.smtp_host,
+            smtp_ip,
             config.smtp_port,
-            timeout=config.smtp_timeout,
         )
+        smtp = smtplib.SMTP(timeout=config.smtp_timeout)
+        smtp._host = config.smtp_host
+        smtp.connect(smtp_ip, config.smtp_port)
 
     with smtp:
         smtp.ehlo()
