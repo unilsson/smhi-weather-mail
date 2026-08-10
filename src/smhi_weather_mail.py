@@ -149,13 +149,22 @@ def parse_iso_utc(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
 
 
+def coordinate_for_url(value: float) -> str:
+    """SMHI accepts at most six decimal places in point coordinates."""
+    return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
 def fetch_forecast(config: Config, timeseries: int = 30) -> dict[str, Any]:
+    # Fetch all parameters from SMHI.
+    # This avoids interoperability problems with comma-separated parameter
+    # filtering while keeping the response small by limiting timeSeries.
     query = urlencode({
         "timeseries": timeseries,
-        "parameters": ",".join(PARAMETERS),
     })
+    longitude = coordinate_for_url(config.longitude)
+    latitude = coordinate_for_url(config.latitude)
     url = (
-        f"{SMHI_BASE_URL}/lon/{config.longitude}/lat/{config.latitude}/data.json"
+        f"{SMHI_BASE_URL}/lon/{longitude}/lat/{latitude}/data.json"
         f"?{query}"
     )
     request = Request(
@@ -171,6 +180,11 @@ def fetch_forecast(config: Config, timeseries: int = 30) -> dict[str, Any]:
         with urlopen(request, timeout=20) as response:
             payload = response.read().decode("utf-8")
     except HTTPError as exc:
+        if exc.code == 404:
+            raise RuntimeError(
+                "SMHI svarade med HTTP 404. "
+                f"Anropade koordinater: lon={longitude}, lat={latitude}."
+            ) from exc
         raise RuntimeError(f"SMHI svarade med HTTP {exc.code}.") from exc
     except URLError as exc:
         raise RuntimeError(f"Kunde inte ansluta till SMHI: {exc.reason}") from exc
