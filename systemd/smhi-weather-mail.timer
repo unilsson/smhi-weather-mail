@@ -1,0 +1,11 @@
+[Unit]
+Description=Send daily SMHI weather email
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+Persistent=true
+RandomizedDelaySec=60
+Unit=smhi-weather-mail.service
+
+[Install]
+WantedBy=timers.target

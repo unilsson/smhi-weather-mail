@@ -1,0 +1,17 @@
+---
+# Kopiera till en lämplig vars-fil i din egen Ansible-miljö.
+# Lägg lösenordet i Ansible Vault, inte i klartext i Git.
+
+smhi_weather_mail_lat: 59.000000
+smhi_weather_mail_lon: 18.000000
+smhi_weather_mail_location_name: "Hemma"
+smhi_weather_mail_timezone: "Europe/Stockholm"
+
+smhi_weather_mail_smtp_host: "smtp.example.com"
+smhi_weather_mail_smtp_port: 587
+smhi_weather_mail_smtp_security: "starttls"
+smhi_weather_mail_smtp_user: "weather@example.com"
+smhi_weather_mail_smtp_password: "{{ vault_smhi_weather_mail_smtp_password }}"
+
+smhi_weather_mail_mail_from: "weather@example.com"
+smhi_weather_mail_mail_to: "ulf@example.com,pappa@example.com"

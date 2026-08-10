@@ -1,0 +1,19 @@
+[Unit]
+Description=Daily SMHI weather email
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/smhi-weather-mail.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/smhi-weather-mail/smhi_weather_mail.py
+User=smhi-weather-mail
+Group=smhi-weather-mail
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

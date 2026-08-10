@@ -1,0 +1,7 @@
+---
+all:
+  children:
+    weather_mail_servers:
+      hosts:
+        monitor:
+          ansible_host: monitor

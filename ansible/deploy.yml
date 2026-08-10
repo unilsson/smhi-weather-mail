@@ -1,0 +1,113 @@
+---
+- name: Deploy SMHI weather mail
+  hosts: weather_mail_servers
+  become: true
+
+  vars:
+    smhi_weather_mail_app_dir: /opt/smhi-weather-mail
+    smhi_weather_mail_user: smhi-weather-mail
+    smhi_weather_mail_group: smhi-weather-mail
+
+  tasks:
+    - name: Ensure runtime packages are installed
+      ansible.builtin.apt:
+        name:
+          - python3
+          - tzdata
+        state: present
+        update_cache: true
+
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - smhi_weather_mail_lat is defined
+          - smhi_weather_mail_lon is defined
+          - smhi_weather_mail_location_name is defined
+          - smhi_weather_mail_smtp_host is defined
+          - smhi_weather_mail_mail_from is defined
+          - smhi_weather_mail_mail_to is defined
+          - smhi_weather_mail_smtp_password is defined
+        fail_msg: >-
+          Required weather-mail variables are missing.
+          See ansible/group_vars/weather_mail_servers.yml.example.
+
+    - name: Create service group
+      ansible.builtin.group:
+        name: "{{ smhi_weather_mail_group }}"
+        system: true
+
+    - name: Create service user
+      ansible.builtin.user:
+        name: "{{ smhi_weather_mail_user }}"
+        group: "{{ smhi_weather_mail_group }}"
+        system: true
+        create_home: false
+        shell: /usr/sbin/nologin
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ smhi_weather_mail_app_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install weather mail program
+      ansible.builtin.copy:
+        src: ../src/smhi_weather_mail.py
+        dest: "{{ smhi_weather_mail_app_dir }}/smhi_weather_mail.py"
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart weather mail timer
+
+    - name: Install environment file
+      ansible.builtin.template:
+        src: templates/smhi-weather-mail.env.j2
+        dest: /etc/smhi-weather-mail.env
+        owner: root
+        group: "{{ smhi_weather_mail_group }}"
+        mode: "0640"
+      no_log: true
+      notify: Restart weather mail timer
+
+    - name: Install systemd service
+      ansible.builtin.copy:
+        src: ../systemd/smhi-weather-mail.service
+        dest: /etc/systemd/system/smhi-weather-mail.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart weather mail timer
+
+    - name: Install systemd timer
+      ansible.builtin.copy:
+        src: ../systemd/smhi-weather-mail.timer
+        dest: /etc/systemd/system/smhi-weather-mail.timer
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart weather mail timer
+
+    - name: Enable and start timer
+      ansible.builtin.systemd_service:
+        name: smhi-weather-mail.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Restart weather mail timer
+      ansible.builtin.systemd_service:
+        name: smhi-weather-mail.timer
+        state: restarted
+        enabled: true
+        daemon_reload: true
