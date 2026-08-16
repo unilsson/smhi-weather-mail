@@ -6,3 +6,12 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+
+# Local Ansible configuration and secrets
+ansible/group_vars/vault.yml
+ansible/group_vars/weather_mail_servers.yml
+ansible/group_vars/weather_mail_servers.yml~
+ansible/inventory.yml
+
+# Editor backup files
+*~
